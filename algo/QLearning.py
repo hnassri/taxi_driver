@@ -26,7 +26,7 @@ class QLearning:
         self.metrics = {
             "rewards": [],
             "steps": [],
-            "success_rate": [],
+            "success_rate": 0,
             "epochs": epochs,
             "training_time": 0
         }
@@ -37,6 +37,11 @@ class QLearning:
             self.__q_learning_algo(isTraining=True)
         end_time = time.perf_counter()
         self.metrics["training_time"] = end_time - start_time
+        
+        print("Entraînement terminé")
+        print("Calcul des métriques en cours...")
+        self.calculate_metrics()
+        print("Métriques calculées")
 
     def run(self):
         self.env = gym.make("Taxi-v3", render_mode="human")
@@ -71,12 +76,13 @@ class QLearning:
         except:
             print("An error occured while trying to save the file") 
 
-    def __q_learning_algo(self, isTraining=False):
+    def __q_learning_algo(self, isTraining=False, isCalculate=False):
             state = self.env.reset()
             episode_over = False
 
             run_reward = 0
             step_count = 0
+            success = False
             state = state[0]
             while not episode_over:
                 rand = np.random.rand()
@@ -90,19 +96,30 @@ class QLearning:
                 if isTraining: 
                     self.Q_table[state,action] = (1.0 - self.learning_rate)*self.Q_table[state,action] + self.learning_rate*(reward + self.gamma * np.max(self.Q_table[s_,:]))
                     run_reward += reward
-                    step_count += 1
+                step_count += 1
 
                 episode_over = terminated or truncated
+                success = terminated
                 state = s_
                 
             
-            if isTraining: 
-                self.metrics["rewards"].append(run_reward / step_count)
+            if isCalculate: 
+                if run_reward != 0:
+                    self.metrics["rewards"].append(run_reward / step_count)
+                else:
+                    self.metrics["rewards"].append(0)
+
                 self.metrics["steps"].append(step_count)
-                self.metrics["success_rate"].append(int(run_reward > 0))
+
+                if success:
+                    self.metrics["success_rate"] += 1
 
             self.env.close()
-        
+    
+    def calculate_metrics(self):
+        for i in range(1000):
+            self.__q_learning_algo(isCalculate=True)
+
     def get_metrics(self):
         return self.metrics
 
@@ -115,7 +132,7 @@ class QLearning:
 
         print("Overall Average reward:", np.mean(self.metrics["rewards"]))
         print("Overall Average number of steps:", np.mean(self.metrics["steps"]))
-        print("Success rate (%):", np.mean(self.metrics["success_rate"])*100)
+        print("Success rate (%):", self.metrics["success_rate"] / 1000 * 100)
         print("Number of epochs:", self.metrics["epochs"])
         print("Training Time(in secondes):", self.metrics["training_time"])
 
