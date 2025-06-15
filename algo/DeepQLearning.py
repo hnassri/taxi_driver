@@ -55,10 +55,12 @@ class DQN(nn.Module):
         return self.fc3(x)
 
 class DeepQLearning:   
-    def __init__(self, learning_rate=0.8, gamma=0.95, exploration_prob=0.6, batch_size=64, target_net_update_freq=100, memory_size=10000):
+    def __init__(self, learning_rate=0.001, gamma=0.95, exploration_prob=0.6, batch_size=64, target_net_update_freq=100, memory_size=10000, epsilon_decay=0.9995, epsilon_min=0.6):
         self.set_learning_rate(learning_rate)
         self.set_gamma(gamma)
         self.set_exploration_prob(exploration_prob)
+        self.set_epsilon_decay(epsilon_decay)
+        self.set_epsilon_min(epsilon_min)
         self.env = gym.make("Taxi-v3")
         
         self.target_net_update_freq = target_net_update_freq
@@ -109,11 +111,19 @@ class DeepQLearning:
         self.init_memory()
         self.init_net()
 
+        epsilon = self.exploration_prob
+
         start_time = time.perf_counter()
+
+        print("Entraînement en cours...")
+        x = 1
 
         for i in range(epochs):
             self.__q_learning_algo(isTraining=True)
-            self.exploration_prob = max(0.6, self.exploration_prob - (1 / epochs))
+            epsilon = max(self.epsilon_min, epsilon * self.epsilon_decay)
+            if ((i + 1) / epochs) * 100 >= x * 10:
+                print(x * 10, "% effectué")
+                x += 1
         
         end_time = time.perf_counter()
         self.metrics["training_time"] = end_time - start_time
@@ -135,6 +145,8 @@ class DeepQLearning:
                 self.set_learning_rate(data["learning_rate"])
                 self.set_gamma(data["gamma"])    
                 self.set_exploration_prob(data["exploration_prob"])
+                self.set_epsilon_decay(data["epsilon_decay"])
+                self.set_epsilon_min(data["epsilon_min"])
 
                 #Récupére le réseau de neurone
                 self.policy_net = data["policy_net"]
@@ -158,6 +170,8 @@ class DeepQLearning:
                 "learning_rate": self.learning_rate,
                 "gamma": self.gamma,
                 "exploration_prob": self.exploration_prob,
+                "epsilon_decay": self.epsilon_decay,
+                "epsilon_min": self.epsilon_min,
                 "memory_size": self.max_memory_size,
                 "batch_size": self.batch_size,
                 "memory": self.memory,
@@ -279,6 +293,14 @@ class DeepQLearning:
     def set_exploration_prob(self, exploration_prob):
         if self.__check_is_between_0_and_1(value=exploration_prob, name="exploration_prob"):
             self.exploration_prob = exploration_prob
+
+    def set_epsilon_decay(self, epsilon_decay):
+        if self.__check_is_between_0_and_1(value=epsilon_decay, name="epsilon_decay"):
+            self.epsilon_decay = epsilon_decay
+
+    def set_epsilon_min(self, epsilon_min):
+        if self.__check_is_between_0_and_1(value=epsilon_min, name="epsilon_min"):
+            self.epsilon_min = epsilon_min
 
     def __check_is_between_0_and_1(self, value, name):
         message = f"The {name} hyperparameter must be between 0 and 1! \n"

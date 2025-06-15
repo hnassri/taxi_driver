@@ -5,10 +5,12 @@ import pickle
 import time
 
 class QLearning:
-    def __init__(self, learning_rate=0.8, gamma=0.95, exploration_prob=0.6):
+    def __init__(self, learning_rate=0.8, gamma=0.95, exploration_prob=0.6, epsilon_decay=0.9995, epsilon_min=0.6):
         self.set_learning_rate(learning_rate)
         self.set_gamma(gamma)
         self.set_exploration_prob(exploration_prob)
+        self.set_epsilon_decay(epsilon_decay)
+        self.set_epsilon_min(epsilon_min)
         self.env = gym.make("Taxi-v3")
         self.Q_table = np.zeros([self.env.observation_space.n, self.env.action_space.n])
         self.metrics = {
@@ -33,8 +35,19 @@ class QLearning:
         
         self.Q_table = np.zeros([self.env.observation_space.n, self.env.action_space.n])
         start_time = time.perf_counter()
+
+        epsilon = self.exploration_prob
+
+        print("Entraînement en cours...")
+        x = 1
+
         for i in range(epochs):
             self.__q_learning_algo(isTraining=True)
+            epsilon = max(self.epsilon_min, epsilon * self.epsilon_decay)
+            if ((i + 1) / epochs) * 100 >= x * 10:
+                print(x * 10, "% effectué")
+                x += 1
+
         end_time = time.perf_counter()
         self.metrics["training_time"] = end_time - start_time
         
@@ -56,6 +69,8 @@ class QLearning:
                 self.set_learning_rate(data["learning_rate"])
                 self.set_gamma(data["gamma"])    
                 self.set_exploration_prob(data["exploration_prob"])
+                self.set_epsilon_decay(data["epsilon_decay"])
+                self.set_epsilon_min(data["epsilon_min"])
                 self.Q_table = data["Q_table"]
                 self.metrics = data["metrics"]
         except:
@@ -69,7 +84,9 @@ class QLearning:
                 "metrics": self.metrics,
                 "learning_rate": self.learning_rate,
                 "gamma": self.gamma,
-                "exploration_prob": self.exploration_prob
+                "exploration_prob": self.exploration_prob,
+                "epsilon_decay": self.epsilon_decay,
+                "epsilon_min": self.epsilon_min,
             }
             with open(filename + ".pickle", "wb") as f:
                 pickle.dump(data, f)
@@ -149,6 +166,15 @@ class QLearning:
     def set_exploration_prob(self, exploration_prob):
         if self.__check_is_between_0_and_1(value=exploration_prob, name="exploration_prob"):
             self.exploration_prob = exploration_prob
+    
+    def set_epsilon_decay(self, epsilon_decay):
+        if self.__check_is_between_0_and_1(value=epsilon_decay, name="epsilon_decay"):
+            self.epsilon_decay = epsilon_decay
+
+    def set_epsilon_min(self, epsilon_min):
+        if self.__check_is_between_0_and_1(value=epsilon_min, name="epsilon_min"):
+            self.epsilon_min = epsilon_min
+
 
     def __check_is_between_0_and_1(self, value, name):
         message = f"The {name} hyperparameter must be between 0 and 1! \n"
